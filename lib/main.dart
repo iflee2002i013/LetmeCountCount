@@ -37,7 +37,7 @@ class _IntroPageState extends State<IntroPage> {
     '你还不相信？',
     '好吧，这其实是一个计算器。',
   ];
-  
+
   int _currentIndex = 0;
 
   void _nextMessage() {
@@ -116,6 +116,7 @@ class _HomePageState extends State<HomePage> {
   final _hexController = TextEditingController();
   String _bitWidth = '';
   int? _activeBase; // 记录当前正在输入的进制
+  bool _hasShownError = false;
 
   @override
   void dispose() {
@@ -127,6 +128,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showErrorSnackBar(String base) {
+    if (_hasShownError) return;
+    _hasShownError = true;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('喂喂喂，会不会数数啊？$base进制怎么能输入这个值呢？'),
@@ -135,18 +138,44 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _validateInput(String value, int base, String baseName) {
+    if (value.isEmpty) return;
+
+    RegExp pattern;
+    switch (base) {
+      case 2:
+        pattern = RegExp(r'^[0-1]+$');
+        break;
+      case 8:
+        pattern = RegExp(r'^[0-7]+$');
+        break;
+      case 10:
+        pattern = RegExp(r'^[0-9]+$');
+        break;
+      case 16:
+        pattern = RegExp(r'^[0-9A-Fa-f]+$');
+        break;
+      default:
+        return;
+    }
+
+    if (!pattern.hasMatch(value)) {
+      _showErrorSnackBar(baseName);
+    }
+  }
+
   void _updateFromBinary(String value) {
     if (_activeBase != 2) return;
     if (value.isEmpty) {
       _clearAll();
       return;
     }
-    
+
     if (value.contains(RegExp(r'[^0-1]'))) {
       _showErrorSnackBar('二');
       return;
     }
-    
+
     try {
       final number = BigInt.parse(value, radix: 2);
       _updateAllFields(number, 2);
@@ -159,12 +188,12 @@ class _HomePageState extends State<HomePage> {
       _clearAll();
       return;
     }
-    
+
     if (value.contains(RegExp(r'[^0-7]'))) {
       _showErrorSnackBar('八');
       return;
     }
-    
+
     try {
       final number = BigInt.parse(value, radix: 8);
       _updateAllFields(number, 8);
@@ -177,12 +206,12 @@ class _HomePageState extends State<HomePage> {
       _clearAll();
       return;
     }
-    
+
     if (value.contains(RegExp(r'[^0-9]'))) {
       _showErrorSnackBar('十');
       return;
     }
-    
+
     try {
       final number = BigInt.parse(value);
       _updateAllFields(number, 10);
@@ -195,12 +224,12 @@ class _HomePageState extends State<HomePage> {
       _clearAll();
       return;
     }
-    
+
     if (value.contains(RegExp(r'[^0-9A-Fa-f]'))) {
       _showErrorSnackBar('十六');
       return;
     }
-    
+
     try {
       final number = BigInt.parse(value, radix: 16);
       _updateAllFields(number, 16);
@@ -222,7 +251,7 @@ class _HomePageState extends State<HomePage> {
         _hexController.text = number.toRadixString(16).toUpperCase();
       }
       _bitWidth = '${number.toRadixString(2).length} 位';
-      
+
       String message = '';
       switch (number.toString()) {
         case '1024':
@@ -250,7 +279,7 @@ class _HomePageState extends State<HomePage> {
           message = '我叫三月七，不是37!';
           break;
       }
-      
+
       if (message.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -270,6 +299,7 @@ class _HomePageState extends State<HomePage> {
       if (_activeBase != 10) _decimalController.clear();
       if (_activeBase != 16) _hexController.clear();
       _bitWidth = '';
+      _hasShownError = false;
     });
   }
 
@@ -279,6 +309,24 @@ class _HomePageState extends State<HomePage> {
     required int base,
     required ValueChanged<String> onChanged,
   }) {
+    String baseName;
+    switch (base) {
+      case 2:
+        baseName = '二';
+        break;
+      case 8:
+        baseName = '八';
+        break;
+      case 10:
+        baseName = '十';
+        break;
+      case 16:
+        baseName = '十六';
+        break;
+      default:
+        baseName = '';
+    }
+
     return TextField(
       controller: controller,
       decoration: InputDecoration(
@@ -296,6 +344,9 @@ class _HomePageState extends State<HomePage> {
         setState(() => _activeBase = base);
       },
       onChanged: onChanged,
+      onEditingComplete: () {
+        _validateInput(controller.text, base, baseName);
+      },
       readOnly: _activeBase != null && _activeBase != base,
     );
   }
@@ -383,4 +434,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
